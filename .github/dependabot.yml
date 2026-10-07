@@ -1,0 +1,43 @@
+# Dependabot version updates. PlatformIO (platformio.ini lib_deps and the
+# espressif32 platform) is not a supported ecosystem, so those stay manual.
+version: 2
+
+updates:
+  # Flake inputs in nix/flake.lock (nixpkgs, flake-compat).
+  - package-ecosystem: "nix"
+    directory: "/nix"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "nix"
+
+  # SvelteKit web UI (pnpm, via the npm ecosystem).
+  - package-ecosystem: "npm"
+    directory: "/web"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "web"
+    groups:
+      svelte:
+        patterns:
+          - "svelte"
+          - "svelte-check"
+          - "@sveltejs/*"
+      tooling:
+        patterns:
+          - "vite"
+          - "typescript"
+          - "@types/*"
+
+  # Actions used in .github/workflows.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "ci"
+    groups:
+      actions:
+        patterns:
+          - "*"

@@ -1,0 +1,25 @@
+:root {
+	--bg: #0b0b0c;
+	--ink: #e5e5e5;
+	--dim: #8a8a8a;
+	--line: #262628;
+	--ok: #3ecf6e;
+	--bad: #e5484d;
+	--font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+	--mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+	color-scheme: dark;
+}
+
+* {
+	box-sizing: border-box;
+}
+
+html,
+body {
+	margin: 0;
+	background: var(--bg);
+	color: var(--ink);
+	font-family: var(--font);
+	line-height: 1.5;
+}

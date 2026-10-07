@@ -1,0 +1,89 @@
+name: Release
+
+# Builds the firmware + LittleFS filesystem image for a tagged version and
+# publishes them as a GitHub Release on this repository.
+# FIRMWARE_VERSION (src/Version.h) is overridden at compile time from the tag,
+# so the firmware always reports the version it was actually released as.
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Derive version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Build web UI
+        working-directory: web
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm run deploy
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install PlatformIO Core
+        run: pip install -U platformio
+
+      - name: Cache PlatformIO packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
+          restore-keys: pio-${{ runner.os }}-
+
+      - name: Build firmware
+        env:
+          PLATFORMIO_BUILD_FLAGS: -D FIRMWARE_VERSION='"${{ github.ref_name }}"'
+        run: pio run -e xiao_esp32s3
+
+      - name: Build filesystem image
+        env:
+          PLATFORMIO_BUILD_FLAGS: -D FIRMWARE_VERSION='"${{ github.ref_name }}"'
+        run: pio run -e xiao_esp32s3 -t buildfs
+
+      - name: Stage release assets
+        run: |
+          mkdir -p release
+          cp .pio/build/xiao_esp32s3/bootloader.bin release/firmware-bootloader.bin
+          cp .pio/build/xiao_esp32s3/partitions.bin release/firmware-partitions.bin
+          cp .pio/build/xiao_esp32s3/firmware.bin release/firmware.bin
+          cp .pio/build/xiao_esp32s3/littlefs.bin release/firmware-filesystem.bin
+          cp .pio/build/xiao_esp32s3/firmware.elf release/firmware.elf
+
+      - name: Generate release notes from source history
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
+            -f tag_name="${GITHUB_REF_NAME}" \
+            --jq .body > release-notes.md
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: v${{ steps.version.outputs.version }}
+          body_path: release-notes.md
+          files: release/*
